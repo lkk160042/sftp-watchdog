@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Callable
 import shutil
 import time
 
 from sftp_watchdog.config import WatchdogConfig
+from sftp_watchdog.loader import ProcessFunc
 from sftp_watchdog.process import process as default_process
-
-ProcessFunc = Callable[[Path], None]
 
 
 def wait_until_file_is_stable(

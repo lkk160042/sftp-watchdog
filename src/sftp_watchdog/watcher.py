@@ -7,7 +7,8 @@ from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 
 from sftp_watchdog.config import WatchdogConfig
-from sftp_watchdog.processor import ProcessFunc, handle_new_file, scan_existing_files
+from sftp_watchdog.loader import ProcessFunc
+from sftp_watchdog.processor import handle_new_file, scan_existing_files
 from sftp_watchdog.process import process as default_process
 
 

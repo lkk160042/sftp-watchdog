@@ -18,27 +18,35 @@ python -m venv .venv
   --watch-dir /data/incoming \
   --processing-dir /data/processing \
   --done-dir /data/done \
-  --failed-dir /data/failed
+  --failed-dir /data/failed \
+  --processor /opt/my_app/process_upload.py:handle_upload
 ```
 
 To process only CSV files:
 
 ```bash
-.venv/bin/sftp-watchdog --extension csv
+.venv/bin/sftp-watchdog \
+  --processor /opt/my_app/process_upload.py:handle_upload \
+  --extension csv
 ```
 
-## Processing Hook
+## Custom Processor
 
-Replace the pseudo-code in `src/sftp_watchdog/process.py` with real business
-logic:
+Provide your own callable with `--processor`. The callable receives the uploaded
+file after it has been moved into the processing directory.
 
 ```python
-def process(file_path: Path) -> None:
-    data = read_csv(file_path)
-    validate(data)
-    save_to_db(data)
-    make_result(data)
+from pathlib import Path
+
+
+def handle_upload(file_path: Path) -> None:
+    print(f"Process uploaded file: {file_path}")
 ```
+
+The processor value can be either a Python file path or an importable module:
+
+- `/opt/my_app/process_upload.py:handle_upload`
+- `my_app.process_upload:handle_upload`
 
 ## Flow
 
@@ -46,7 +54,7 @@ def process(file_path: Path) -> None:
 2. The watcher handles both create and rename/move events.
 3. The processor waits until file size is stable.
 4. The file is moved into `processing`.
-5. `process()` runs.
+5. The callable passed with `--processor` runs.
 6. Successful files move to `done`; failed files move to `failed`.
 
 ## Test
@@ -58,8 +66,9 @@ def process(file_path: Path) -> None:
 ## Project Layout
 
 - `src/sftp_watchdog/config.py`: directory and filtering configuration
+- `src/sftp_watchdog/loader.py`: user processor import-path loader
 - `src/sftp_watchdog/processor.py`: stable-file wait, moves, scan, and error flow
-- `src/sftp_watchdog/process.py`: replaceable business processing hook
+- `src/sftp_watchdog/process.py`: fallback processor for direct library misuse
 - `src/sftp_watchdog/watcher.py`: watchdog event adapter
 - `src/sftp_watchdog/cli.py`: command-line entry point
 - `tests/`: focused behavior tests

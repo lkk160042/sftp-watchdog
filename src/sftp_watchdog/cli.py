@@ -4,6 +4,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 
 from sftp_watchdog.config import WatchdogConfig
+from sftp_watchdog.loader import ProcessFunc, load_processor
 from sftp_watchdog.watcher import run
 
 
@@ -21,11 +22,16 @@ def build_parser() -> ArgumentParser:
     )
     parser.add_argument("--stability-checks", type=int, default=3)
     parser.add_argument("--stability-interval", type=float, default=1.0)
+    parser.add_argument(
+        "--processor",
+        required=True,
+        help="Callable to run for each uploaded file: module:function or /path/to/file.py:function.",
+    )
     return parser
 
 
-def main() -> None:
-    args = build_parser().parse_args()
+def parse_args(argv: list[str] | None = None) -> tuple[WatchdogConfig, ProcessFunc]:
+    args = build_parser().parse_args(argv)
     config = WatchdogConfig(
         watch_dir=args.watch_dir,
         processing_dir=args.processing_dir,
@@ -35,7 +41,12 @@ def main() -> None:
         stability_checks=args.stability_checks,
         stability_interval=args.stability_interval,
     )
-    run(config)
+    return config, load_processor(args.processor)
+
+
+def main() -> None:
+    config, processor = parse_args()
+    run(config, process=processor)
 
 
 if __name__ == "__main__":
