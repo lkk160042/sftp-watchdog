@@ -78,7 +78,9 @@ For applications that manage their own lifecycle, call `start()`, `stop()`, and
 `join()` directly. To process only files already present in `watch_dir`, call
 `scan_existing()`.
 
-To stop safely during a daily maintenance window, use `run_daily()`:
+To stop safely during a daily maintenance window, use `run_daily()`. This
+example exits when the local time reaches any point from `05:00` up to, but not
+including, `05:30`:
 
 ```python
 watchdog.run_daily(shutdown_start="05:00", shutdown_end="05:30")
@@ -91,6 +93,29 @@ For systemd deployments, run the app as a normal service and start it again
 after the maintenance window with a timer. Avoid `Restart=always` for this
 case, because it can immediately relaunch the process inside the shutdown
 window.
+
+Example `app.py`:
+
+```python
+from pathlib import Path
+
+from sftp_watchdog import SFTPWatchdog, WatchdogConfig
+
+
+def handle_upload(file_path: Path) -> None:
+    print(f"Process uploaded file: {file_path}")
+
+
+config = WatchdogConfig(
+    watch_dir=Path("/data/incoming"),
+    processing_dir=Path("/data/processing"),
+    done_dir=Path("/data/done"),
+    failed_dir=Path("/data/failed"),
+)
+
+watchdog = SFTPWatchdog(config, process=handle_upload)
+watchdog.run_daily(shutdown_start="05:00", shutdown_end="05:30")
+```
 
 Example service:
 
@@ -118,6 +143,14 @@ Unit=sftp-watchdog.service
 
 [Install]
 WantedBy=timers.target
+```
+
+Enable the service and timer:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now sftp-watchdog.timer
+sudo systemctl start sftp-watchdog.service
 ```
 
 ## Flow
