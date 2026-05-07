@@ -62,11 +62,11 @@ def handle_upload(file_path: Path) -> None:
 
 
 config = WatchdogConfig(
-    watch_dir=Path("/data/incoming"),
-    processing_dir=Path("/data/processing"),
-    done_dir=Path("/data/done"),
-    failed_dir=Path("/data/failed"),
-    extensions={".csv"},
+    watch_dir=Path("/data/incoming"),          # Pending SFTP uploads.
+    processing_dir=Path("/data/processing"),   # Files being processed.
+    done_dir=Path("/data/done"),               # Successfully processed files.
+    failed_dir=Path("/data/failed"),           # Files whose processor raised.
+    extensions={".csv"},                       # Optional extension filter.
 )
 
 watchdog = SFTPWatchdog(config, process=handle_upload)
@@ -106,10 +106,10 @@ def handle_upload(file_path: Path) -> None:
 
 
 config = WatchdogConfig(
-    watch_dir=Path("/data/incoming"),
-    processing_dir=Path("/data/processing"),
-    done_dir=Path("/data/done"),
-    failed_dir=Path("/data/failed"),
+    watch_dir=Path("/data/incoming"),          # Pending SFTP uploads.
+    processing_dir=Path("/data/processing"),   # Files being processed.
+    done_dir=Path("/data/done"),               # Successfully processed files.
+    failed_dir=Path("/data/failed"),           # Files whose processor raised.
 )
 
 watchdog = SFTPWatchdog(config, process=handle_upload)
@@ -160,6 +160,33 @@ sudo systemctl start sftp-watchdog.service
 4. The file is moved into `processing`.
 5. The callable passed with `--processor` runs.
 6. Successful files move to `done`; failed files move to `failed`.
+
+## How State Is Tracked
+
+This package uses directory movement as the processing state. It does not keep a
+separate database, manifest file, or checksum registry.
+
+- `incoming`: pending files. Startup scans and live events process files here.
+- `processing`: files currently being handled by your processor function.
+- `done`: files that finished successfully.
+- `failed`: files whose processor function raised an exception.
+
+When the watcher starts, it first scans `incoming` for files that arrived while
+the process was not running. Those files are treated as pending and processed
+before live event watching begins. After startup, live `created` and `moved`
+events are handled by `watchdog`.
+
+A processed file is no longer in `incoming`, so it will not be picked up again
+on the next startup. If a file is copied back into `incoming`, it is treated as a
+new upload. If a file with the same name already exists in `done`, `failed`, or
+`processing`, the package avoids overwriting it by adding a numeric suffix such
+as `report_1.csv`.
+
+If the Python process dies after a file has moved to `processing`, that file may
+remain there. The current implementation does not automatically retry or fail
+orphaned `processing` files on the next startup. For strict exactly-once or
+retry semantics, add your own durable state store, reconciliation job, or
+startup policy around `processing`.
 
 ## Test
 
