@@ -7,14 +7,13 @@ directories.
 ## Install
 
 ```bash
-python -m venv .venv
-.venv/bin/python -m pip install -e .
+pip install git+https://github.com/lkk160042/sftp-watchdog.git
 ```
 
 ## Run
 
 ```bash
-.venv/bin/sftp-watchdog \
+sftp-watchdog \
   --watch-dir /data/incoming \
   --processing-dir /data/processing \
   --done-dir /data/done \
@@ -25,7 +24,7 @@ python -m venv .venv
 To process only CSV files:
 
 ```bash
-.venv/bin/sftp-watchdog \
+sftp-watchdog \
   --processor /opt/my_app/process_upload.py:handle_upload \
   --extension csv
 ```
@@ -126,7 +125,7 @@ Description=SFTP Watchdog
 [Service]
 Type=simple
 WorkingDirectory=/opt/sftp-watchdog-app
-ExecStart=/opt/sftp-watchdog-app/.venv/bin/python app.py
+ExecStart=/usr/bin/python3 /opt/sftp-watchdog-app/app.py
 Restart=no
 ```
 
@@ -165,7 +164,7 @@ sudo systemctl start sftp-watchdog.service
 ## Test
 
 ```bash
-.venv/bin/python -m pytest -q
+python -m pytest -q
 ```
 
 ## Project Layout
