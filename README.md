@@ -78,6 +78,48 @@ For applications that manage their own lifecycle, call `start()`, `stop()`, and
 `join()` directly. To process only files already present in `watch_dir`, call
 `scan_existing()`.
 
+To stop safely during a daily maintenance window, use `run_daily()`:
+
+```python
+watchdog.run_daily(shutdown_start="05:00", shutdown_end="05:30")
+```
+
+When `shutdown_start` and `shutdown_end` are omitted, `run_daily()` behaves the
+same as `run_forever()`.
+
+For systemd deployments, run the app as a normal service and start it again
+after the maintenance window with a timer. Avoid `Restart=always` for this
+case, because it can immediately relaunch the process inside the shutdown
+window.
+
+Example service:
+
+```ini
+[Unit]
+Description=SFTP Watchdog
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/sftp-watchdog-app
+ExecStart=/opt/sftp-watchdog-app/.venv/bin/python app.py
+Restart=no
+```
+
+Example timer:
+
+```ini
+[Unit]
+Description=Start SFTP Watchdog after daily maintenance window
+
+[Timer]
+OnCalendar=*-*-* 05:31:00
+Persistent=true
+Unit=sftp-watchdog.service
+
+[Install]
+WantedBy=timers.target
+```
+
 ## Flow
 
 1. SFTP uploads a file into `incoming`.
@@ -99,6 +141,6 @@ For applications that manage their own lifecycle, call `start()`, `stop()`, and
 - `src/sftp_watchdog/loader.py`: user processor import-path loader
 - `src/sftp_watchdog/processor.py`: stable-file wait, moves, scan, and error flow
 - `src/sftp_watchdog/process.py`: fallback processor for direct library misuse
-- `src/sftp_watchdog/watcher.py`: importable watcher class and watchdog event adapter
+- `src/sftp_watchdog/watcher.py`: importable watcher class, daily shutdown loop, and watchdog event adapter
 - `src/sftp_watchdog/cli.py`: command-line entry point
 - `tests/`: focused behavior tests
