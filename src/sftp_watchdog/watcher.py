@@ -28,25 +28,51 @@ class IncomingFileHandler(FileSystemEventHandler):
         handle_new_file(Path(event.dest_path), self.config, process=self.process)
 
 
+class SFTPWatchdog:
+    def __init__(self, config: WatchdogConfig, *, process: ProcessFunc = default_process) -> None:
+        self.config = config
+        self.process = process
+        self._observer: Observer | None = None
+
+    def scan_existing(self) -> int:
+        self.config.ensure_dirs()
+        return scan_existing_files(self.config, process=self.process)
+
+    def start(self, *, scan_existing: bool = True) -> None:
+        self.config.ensure_dirs()
+        if scan_existing:
+            self.scan_existing()
+
+        observer = Observer()
+        observer.schedule(
+            IncomingFileHandler(self.config, process=self.process),
+            str(self.config.watch_dir),
+            recursive=False,
+        )
+        observer.start()
+        self._observer = observer
+
+    def stop(self) -> None:
+        if self._observer is not None:
+            self._observer.stop()
+
+    def join(self) -> None:
+        if self._observer is not None:
+            self._observer.join()
+
+    def run_forever(self) -> None:
+        print(f"[START] watching: {self.config.watch_dir}")
+        self.start()
+
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            print("[STOP] watcher interrupted")
+            self.stop()
+
+        self.join()
+
+
 def run(config: WatchdogConfig, *, process: ProcessFunc = default_process) -> None:
-    config.ensure_dirs()
-    print(f"[START] watching: {config.watch_dir}")
-
-    scan_existing_files(config, process=process)
-
-    observer = Observer()
-    observer.schedule(
-        IncomingFileHandler(config, process=process),
-        str(config.watch_dir),
-        recursive=False,
-    )
-    observer.start()
-
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        print("[STOP] watcher interrupted")
-        observer.stop()
-
-    observer.join()
+    SFTPWatchdog(config, process=process).run_forever()

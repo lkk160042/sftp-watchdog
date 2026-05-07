@@ -48,6 +48,36 @@ The processor value can be either a Python file path or an importable module:
 - `/opt/my_app/process_upload.py:handle_upload`
 - `my_app.process_upload:handle_upload`
 
+## Library Usage
+
+You can also embed the watcher in your own Python application:
+
+```python
+from pathlib import Path
+
+from sftp_watchdog import SFTPWatchdog, WatchdogConfig
+
+
+def handle_upload(file_path: Path) -> None:
+    print(f"Process uploaded file: {file_path}")
+
+
+config = WatchdogConfig(
+    watch_dir=Path("/data/incoming"),
+    processing_dir=Path("/data/processing"),
+    done_dir=Path("/data/done"),
+    failed_dir=Path("/data/failed"),
+    extensions={".csv"},
+)
+
+watchdog = SFTPWatchdog(config, process=handle_upload)
+watchdog.run_forever()
+```
+
+For applications that manage their own lifecycle, call `start()`, `stop()`, and
+`join()` directly. To process only files already present in `watch_dir`, call
+`scan_existing()`.
+
 ## Flow
 
 1. SFTP uploads a file into `incoming`.
@@ -69,6 +99,6 @@ The processor value can be either a Python file path or an importable module:
 - `src/sftp_watchdog/loader.py`: user processor import-path loader
 - `src/sftp_watchdog/processor.py`: stable-file wait, moves, scan, and error flow
 - `src/sftp_watchdog/process.py`: fallback processor for direct library misuse
-- `src/sftp_watchdog/watcher.py`: watchdog event adapter
+- `src/sftp_watchdog/watcher.py`: importable watcher class and watchdog event adapter
 - `src/sftp_watchdog/cli.py`: command-line entry point
 - `tests/`: focused behavior tests
