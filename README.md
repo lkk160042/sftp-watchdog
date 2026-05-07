@@ -160,6 +160,8 @@ sudo systemctl start sftp-watchdog.service
 4. The file is moved into `processing`.
 5. The callable passed with `--processor` runs.
 6. Successful files move to `done`; failed files move to `failed`.
+7. For live file events, processor exceptions are logged and isolated so the
+   watcher can continue handling later uploads.
 
 ## How State Is Tracked
 
@@ -170,6 +172,10 @@ separate database, manifest file, or checksum registry.
 - `processing`: files currently being handled by your processor function.
 - `done`: files that finished successfully.
 - `failed`: files whose processor function raised an exception.
+
+If your processor raises an exception, including `AttributeError`, the file is
+moved to `failed`. During live event watching, that exception is logged but does
+not stop the event handler, so later uploads can still be processed.
 
 When the watcher starts, it first scans `incoming` for files that arrived while
 the process was not running. Those files are treated as pending and processed

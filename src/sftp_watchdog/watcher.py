@@ -4,6 +4,7 @@ from collections.abc import Callable
 from datetime import datetime, time as clock_time
 from pathlib import Path
 import time
+import traceback
 
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
@@ -26,12 +27,19 @@ class IncomingFileHandler(FileSystemEventHandler):
     def on_created(self, event) -> None:  # noqa: ANN001
         if event.is_directory:
             return
-        handle_new_file(Path(event.src_path), self.config, process=self.process)
+        self._handle_event_path(Path(event.src_path))
 
     def on_moved(self, event) -> None:  # noqa: ANN001
         if event.is_directory:
             return
-        handle_new_file(Path(event.dest_path), self.config, process=self.process)
+        self._handle_event_path(Path(event.dest_path))
+
+    def _handle_event_path(self, file_path: Path) -> None:
+        try:
+            handle_new_file(file_path, self.config, process=self.process)
+        except Exception:
+            print(f"[ERROR] failed to process event file: {file_path}")
+            print(traceback.format_exc())
 
 
 class SFTPWatchdog:
